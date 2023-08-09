@@ -1,0 +1,10 @@
+[package]
+name = "velocity_evolver"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+mikes-ge = { git = "https://github.com/MichaelDuPlessis/mikes-ge.git" }
+mikes-pso = { git = "https://github.com/MichaelDuPlessis/mikes-pso.git" }
