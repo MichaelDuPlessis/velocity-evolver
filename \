@@ -23,7 +23,7 @@ enum ScalarOps {
 }
 
 impl Grammer for Velocity {
-    type Input = Box<dyn Fn(&Vector<2>) -> f64>;
+    type Input = fn(&Vector<2>) -> f64;
     type Output = f64;
 
     fn run(&self, input: &Self::Input) -> Self::Output {
@@ -116,24 +116,8 @@ fn main() {
     let obj_func1 = |coords: &Vector<2>| {
         0.26 * (coords[0] * coords[0] + coords[1] * coords[1]) - 0.48 * coords[0] * coords[1]
     };
-    let obj_func2 = |coords: &Vector<2>| {
-        coords
-            .iter()
-            .enumerate()
-            .map(|(i, &x)| i as f64 * x * x)
-            .sum()
-    };
-    let train = [
-        (
-            Box::new(obj_func1) as Box<dyn for<'a> Fn(&'a Vector<2>) -> f64>,
-            0.0,
-        ),
-        (
-            Box::new(obj_func2) as Box<dyn for<'a> Fn(&'a Vector<2>) -> f64>,
-            0.0,
-        ),
-    ];
-    let mut ge = GE::<Box<dyn Fn(&Vector<2>) -> f64>, f64, Velocity>::new(
+    let obj_func2 = |coords: &Vector<2>| coords.iter().enumerate(|(i, x)| i * x * x).sum();
+    let mut ge = GE::<fn(&Vector<2>) -> f64, f64, Velocity>::new(
         100,
         (0.5, 0.5, 0.0),
         3,
@@ -141,7 +125,7 @@ fn main() {
         100,
         4,
         1,
-        &train,
+        &[(obj_func1, 0.0), (obj_func2, 0.0)],
     );
     let chromosome = ge.start();
 
@@ -156,7 +140,6 @@ fn main() {
     let particle = pso.optimize(100, obj_func2);
     println!("Func 2 {:?}", obj_func2(&particle.coordinates()));
     println!("{:?}", particle);
-
     println!("Canonical Equation");
     let mut pso = PSO::new(
         100,

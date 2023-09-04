@@ -43,7 +43,7 @@ dependencies = [
 [[package]]
 name = "mikes-pso"
 version = "0.1.0"
-source = "git+https://github.com/MichaelDuPlessis/mikes-pso.git#64992f8112e5a5d8da134b9ccc29957576717d90"
+source = "git+https://github.com/MichaelDuPlessis/mikes-pso.git#c0f86c9b168d2c2035874ceac8358e62a74295c9"
 dependencies = [
  "rand",
 ]
