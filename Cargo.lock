@@ -34,7 +34,7 @@ checksum = "b4668fb0ea861c1df094127ac5f1da3409a82116a4ba74fca2e58ef927159bb3"
 [[package]]
 name = "mikes-ge"
 version = "0.1.0"
-source = "git+https://github.com/MichaelDuPlessis/mikes-ge.git#a7f3675ff54a4dcc762d6feee2a082e83a2d4c7f"
+source = "git+https://github.com/MichaelDuPlessis/mikes-ge.git#25d08543bb5c61ed800d983f6d9d9bfdfb16e604"
 dependencies = [
  "num-traits",
  "rand",
@@ -43,7 +43,7 @@ dependencies = [
 [[package]]
 name = "mikes-pso"
 version = "0.1.0"
-source = "git+https://github.com/MichaelDuPlessis/mikes-pso.git#30587a333fa7751d2e682b393dc49cdb95a8f1f9"
+source = "git+https://github.com/MichaelDuPlessis/mikes-pso.git#64992f8112e5a5d8da134b9ccc29957576717d90"
 dependencies = [
  "rand",
 ]
@@ -99,6 +99,7 @@ version = "0.1.0"
 dependencies = [
  "mikes-ge",
  "mikes-pso",
+ "rand",
 ]
 
 [[package]]

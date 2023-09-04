@@ -8,3 +8,4 @@ edition = "2021"
 [dependencies]
 mikes-ge = { git = "https://github.com/MichaelDuPlessis/mikes-ge.git" }
 mikes-pso = { git = "https://github.com/MichaelDuPlessis/mikes-pso.git" }
+rand = "0.8.5"
