@@ -1,14 +1,25 @@
+mod function;
+
 use mikes_ge::{ge::GE, grammer::Grammer};
-use mikes_pso::{particle::Particle, pso::PSO, vector::Vector};
+use mikes_pso::{bounds::Bound, particle::Particle, pso::pso, vector::Vector};
 use rand::Rng;
+use std::fs::File;
+use std::io::Write;
+use std::marker::PhantomData;
+use std::time::{Duration, Instant};
 
 #[derive(Debug)]
-enum Velocity {
-    Current,
-    Best,
+enum Velocity<'a> {
+    CurrentCoords,
+    BestCoords,
+    CurrentBestCoords,
+    BestBestCoords,
+    CurrentVelocity,
+    BestVelocity,
     Mul(Box<Self>, Box<ScalarOps>),
     Add(Box<Self>, Box<Self>),
     Sub(Box<Self>, Box<Self>),
+    _Unused(PhantomData<&'a ()>),
 }
 
 #[derive(Debug)]
@@ -22,15 +33,14 @@ enum ScalarOps {
     Sub(Box<ScalarOps>, Box<ScalarOps>),
 }
 
-impl Grammer for Velocity {
-    type Input = Box<dyn Fn(&Vector<2>) -> f64>;
+impl<'a> Grammer for Velocity<'a> {
+    type Input = (&'a Box<dyn Fn(&Vector<2>) -> f64>, &'a [Bound]);
     type Output = f64;
 
     fn run(&self, input: &Self::Input) -> Self::Output {
         let func = |current: &_, best: &_| self.runner(current, best);
-        let mut pso = PSO::new(100, [(-10.0, 10.0), (-10.0, 10.0)], func);
-        let particle = pso.optimize(100, input);
-        input(&particle.coordinates())
+        let particle = pso(100, 100, input.1, func, &input.0);
+        (input.0)(&particle.coordinates())
     }
 
     fn generate(chromosome: &[u8]) -> Self {
@@ -38,33 +48,42 @@ impl Grammer for Velocity {
     }
 }
 
-impl Velocity {
+impl<'a> Velocity<'a> {
     fn runner(&self, current: &Particle<2>, best: &Particle<2>) -> Vector<2> {
         match self {
-            Velocity::Current => current.coordinates(),
-            Velocity::Best => best.coordinates(),
+            Velocity::CurrentCoords => current.coordinates(),
+            Velocity::BestCoords => best.coordinates(),
+            Velocity::CurrentBestCoords => current.best(),
+            Velocity::BestBestCoords => best.best(),
+            Velocity::CurrentVelocity => current.velocity(),
+            Velocity::BestVelocity => best.velocity(),
             Velocity::Mul(x, y) => x.runner(current, best) * y.runner(),
             Velocity::Add(x, y) => x.runner(current, best) + y.runner(current, best),
             Velocity::Sub(x, y) => x.runner(current, best) - y.runner(current, best),
+            Velocity::_Unused(_) => panic!("Cannot get here"),
         }
     }
 
     fn generate_helper(pos: &mut usize, chromosome: &[u8]) -> Self {
         let p = *pos % chromosome.len();
-        let modulos = if *pos / chromosome.len() > 3 { 2 } else { 5 };
+        let modulos = if *pos / chromosome.len() > 3 { 6 } else { 9 };
         *pos += 1;
         match chromosome[p] % modulos {
-            0 => Self::Current,
-            1 => Self::Best,
-            2 => Self::Mul(
+            0 => Self::CurrentCoords,
+            1 => Self::BestCoords,
+            2 => Self::CurrentBestCoords,
+            3 => Self::BestBestCoords,
+            4 => Self::CurrentVelocity,
+            5 => Self::BestVelocity,
+            6 => Self::Mul(
                 Box::new(Self::generate_helper(pos, chromosome)),
                 Box::new(ScalarOps::generate_helper(pos, chromosome)),
             ),
-            3 => Self::Add(
+            7 => Self::Add(
                 Box::new(Self::generate_helper(pos, chromosome)),
                 Box::new(Self::generate_helper(pos, chromosome)),
             ),
-            4 => Self::Sub(
+            8 => Self::Sub(
                 Box::new(Self::generate_helper(pos, chromosome)),
                 Box::new(Self::generate_helper(pos, chromosome)),
             ),
@@ -112,28 +131,34 @@ impl ScalarOps {
     }
 }
 
-fn main() {
-    let obj_func1 = |coords: &Vector<2>| {
-        0.26 * (coords[0] * coords[0] + coords[1] * coords[1]) - 0.48 * coords[0] * coords[1]
-    };
-    let obj_func2 = |coords: &Vector<2>| {
-        coords
-            .iter()
-            .enumerate()
-            .map(|(i, &x)| i as f64 * x * x)
-            .sum()
-    };
-    let train = [
-        (
-            Box::new(obj_func1) as Box<dyn for<'a> Fn(&'a Vector<2>) -> f64>,
-            0.0,
-        ),
-        (
-            Box::new(obj_func2) as Box<dyn for<'a> Fn(&'a Vector<2>) -> f64>,
-            0.0,
-        ),
-    ];
-    let mut ge = GE::<Box<dyn Fn(&Vector<2>) -> f64>, f64, Velocity>::new(
+fn run_all_functions() {
+    let functions = function::functions();
+
+    let mut file = File::create("./results/result.csv").unwrap();
+    file.write(b"x, y, minima, time(s)\n").unwrap();
+
+    // unique solution
+    for function in functions.iter() {
+        let res = run_function(function);
+        file.write(res.to_csv().as_bytes()).unwrap();
+    }
+
+    // general solution
+    let train = functions
+        .iter()
+        .map(|function| {
+            (
+                (
+                    &function.func as &Box<dyn for<'a> Fn(&'a Vector<2>) -> f64>,
+                    function.bounds.as_slice(),
+                ),
+                function.minima,
+            )
+        })
+        .collect::<Vec<_>>();
+
+    let start = Instant::now();
+    let mut ge = GE::<(&Box<dyn Fn(&Vector<2>) -> f64>, &[Bound]), f64, Velocity>::new(
         100,
         (0.5, 0.5, 0.0),
         3,
@@ -144,29 +169,100 @@ fn main() {
         &train,
     );
     let chromosome = ge.start();
+    let end = start.elapsed();
 
+    // creating the velocity equation
     let velocity = Velocity::generate(&chromosome);
-    dbg!(&velocity);
+    // dbg!(&velocity);
     let func = |current: &_, best: &_| velocity.runner(current, best);
-    let mut pso = PSO::new(100, [(-10.0, 10.0), (-10.0, 10.0)], func);
-    println!("Evolved Equation");
-    let particle = pso.optimize(100, obj_func1);
-    println!("Func 1 {:?}", obj_func1(&particle.coordinates()));
-    println!("{:?}", particle);
-    let particle = pso.optimize(100, obj_func2);
-    println!("Func 2 {:?}", obj_func2(&particle.coordinates()));
-    println!("{:?}", particle);
 
-    println!("Canonical Equation");
-    let mut pso = PSO::new(
+    // running the pso
+    for function in functions {
+        let particle = pso(100, 100, &function.bounds, func, &function.func);
+        let coords = particle.coordinates();
+        let mimma = (function.func)(&particle.coordinates());
+        let _ = file.write(
+            format!(
+                "{}, {}, {}, {:.4}",
+                coords[0],
+                coords[1],
+                mimma,
+                end.as_secs_f64()
+            )
+            .as_bytes(),
+        );
+    }
+}
+
+struct FunctionResult {
+    coords: Vector<2>,
+    minima: f64,
+    time: Duration,
+}
+
+impl FunctionResult {
+    fn to_json(&self) -> String {
+        format!(
+            "{{
+            \"coords\": {{
+                \"x\": {},
+                \"y\": {}
+            }},
+            \"minima\": {}
+        }}",
+            self.coords[0], self.coords[1], self.minima
+        )
+    }
+
+    fn to_csv(&self) -> String {
+        format!(
+            "{}, {}, {}, {:.4}\n",
+            self.coords[0],
+            self.coords[1],
+            self.minima,
+            self.time.as_secs_f64()
+        )
+    }
+}
+
+fn run_function(function: &function::Function) -> FunctionResult {
+    let train = &[(
+        (
+            &function.func as &Box<dyn for<'a> Fn(&'a Vector<2>) -> f64>,
+            function.bounds.as_slice(),
+        ),
+        function.minima,
+    )];
+    let start = Instant::now();
+    let mut ge = GE::<(&Box<dyn Fn(&Vector<2>) -> f64>, &[Bound]), f64, Velocity>::new(
         100,
-        [(-10.0, 10.0), (-10.0, 10.0)],
-        mikes_pso::canonical_velocity,
+        (0.5, 0.5, 0.0),
+        3,
+        7,
+        100,
+        4,
+        1,
+        train,
     );
-    let particle = pso.optimize(100, obj_func1);
-    println!("Func 1 {:?}", obj_func1(&particle.coordinates()));
-    println!("{:?}", particle);
-    let particle = pso.optimize(100, obj_func2);
-    println!("Func 2 {:?}", obj_func2(&particle.coordinates()));
-    println!("{:?}", particle);
+    let chromosome = ge.start();
+    let end = start.elapsed();
+
+    // crearing the velocity equation
+    let velocity = Velocity::generate(&chromosome);
+    // dbg!(&velocity);
+    let func = |current: &_, best: &_| velocity.runner(current, best);
+
+    // running the pso
+    let particle = pso(100, 100, &function.bounds, func, &function.func);
+    // println!("Function: {}", (function.func)(&particle.coordinates()));
+
+    FunctionResult {
+        coords: particle.coordinates(),
+        minima: (function.func)(&particle.coordinates()),
+        time: end,
+    }
+}
+
+fn main() {
+    run_all_functions()
 }
