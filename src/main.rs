@@ -135,7 +135,7 @@ fn run_all_functions() {
     let functions = function::functions();
 
     let mut file = File::create("./results/result.csv").unwrap();
-    file.write(b"x, y, minima, mse, time(s)\n").unwrap();
+    file.write(b"avg_mse, mse, time(s)\n").unwrap();
 
     // unique solution
     for function in functions.iter() {
@@ -158,69 +158,62 @@ fn run_all_functions() {
         .collect::<Vec<_>>();
 
     let start = Instant::now();
-    let mut ge = GE::<(&Box<dyn Fn(&Vector<2>) -> f64>, &[Bound]), f64, Velocity>::new(
-        100,
-        (0.5, 0.5, 0.0),
-        3,
-        7,
-        100,
-        4,
-        1,
-        &train,
-    );
-    let chromosome = ge.start();
+    let mut best_mse = 0.0f64;
+    let mut total_mse = 0.0;
+    for _r in 0..30 {
+        let mut ge = GE::<(&Box<dyn Fn(&Vector<2>) -> f64>, &[Bound]), f64, Velocity>::new(
+            100,
+            (0.5, 0.5, 0.0),
+            3,
+            7,
+            100,
+            4,
+            1,
+            &train,
+        );
+        let chromosome = ge.start();
+
+        // creating the velocity equation
+        let velocity = Velocity::generate(&chromosome);
+        // dbg!(&velocity);
+        let func = |current: &_, best: &_| velocity.runner(current, best);
+
+        // running the pso
+        let mut mse = 0.0;
+        for function in &functions {
+            let particle = pso(100, 100, &function.bounds, func, &function.func);
+            let minima = (function.func)(&particle.coordinates());
+            mse += (minima - mse) * (minima - mse);
+        }
+
+        best_mse = best_mse.min(mse);
+        total_mse += mse;
+    }
     let end = start.elapsed();
 
-    // creating the velocity equation
-    let velocity = Velocity::generate(&chromosome);
-    // dbg!(&velocity);
-    let func = |current: &_, best: &_| velocity.runner(current, best);
-
-    // running the pso
-    for function in functions {
-        let particle = pso(100, 100, &function.bounds, func, &function.func);
-        let coords = particle.coordinates();
-        let mimma = (function.func)(&particle.coordinates());
-        let _ = file.write(
-            format!(
-                "{}, {}, {}, {:.4}",
-                coords[0],
-                coords[1],
-                mimma,
-                end.as_secs_f64()
-            )
-            .as_bytes(),
-        );
-    }
+    file.write(
+        format!(
+            "{}, {}, {:.4}",
+            total_mse / 30.0,
+            best_mse,
+            end.as_secs_f64()
+        )
+        .as_bytes(),
+    )
+    .unwrap();
 }
 
 struct FunctionResult {
-    coords: Vector<2>,
-    minima: f64,
+    avg_mse: f64,
     mse: f64,
     time: Duration,
 }
 
 impl FunctionResult {
-    fn to_json(&self) -> String {
-        format!(
-            "{{
-            \"coords\": {{
-                \"x\": {},
-                \"y\": {}
-            }},
-            \"minima\": {}
-        }}",
-            self.coords[0], self.coords[1], self.minima
-        )
-    }
-
     fn to_csv(&self) -> String {
         format!(
-            "{}, {}, {}, {}, {:.4}\n",
-            self.coords[0],
-            self.coords[1],
-            self.minima,
+            "{}, {}, {:.4}\n",
+            self.avg_mse,
             self.mse,
             self.time.as_secs_f64()
         )
@@ -236,9 +229,8 @@ fn run_function(function: &function::Function) -> FunctionResult {
         function.minima,
     )];
 
-    let mut mse = 0.0;
-    let mut best_minima = f64::MAX;
-    let mut best_coords = Vector::new([0.0, 0.0]);
+    let mut total_mse = 0.0;
+    let mut best_mse = f64::MAX;
     let start = Instant::now();
     for _ in 0..30 {
         let mut ge = GE::<(&Box<dyn Fn(&Vector<2>) -> f64>, &[Bound]), f64, Velocity>::new(
@@ -262,21 +254,16 @@ fn run_function(function: &function::Function) -> FunctionResult {
         let particle = pso(100, 100, &function.bounds, func, &function.func);
 
         let minima = (function.func)(&particle.coordinates());
-        if minima < best_minima {
-            best_minima = minima;
-            best_coords = particle.coordinates();
-        }
+        let mse = (minima - function.minima) * (minima - function.minima);
 
-        mse += (minima - function.minima) * (minima - function.minima)
-
-        // println!("Function: {}", (function.func)(&particle.coordinates()));
+        best_mse = best_mse.min(mse);
+        total_mse += mse;
     }
     let end = start.elapsed();
 
     FunctionResult {
-        coords: best_coords,
-        minima: best_minima,
-        mse: mse / 30.0,
+        avg_mse: total_mse / 30.0,
+        mse: best_mse,
         time: end,
     }
 }
