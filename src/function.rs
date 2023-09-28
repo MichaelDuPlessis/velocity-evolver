@@ -1,6 +1,6 @@
 use mikes_pso::{bounds::Bound, vector::Vector};
 use rand::Rng;
-use std::f64::consts::PI;
+use std::f64::consts::{E, PI};
 
 pub struct Function {
     pub func: Box<dyn Fn(&Vector<2>) -> f64>,
@@ -8,7 +8,7 @@ pub struct Function {
     pub bounds: Vec<Bound>,
 }
 
-pub fn functions() -> [Function; 13] {
+pub fn functions() -> [Function; 19] {
     [
         Function {
             func: Box::new(|coords: &Vector<2>| {
@@ -149,6 +149,81 @@ pub fn functions() -> [Function; 13] {
             }),
             minima: 0.0,
             bounds: vec![Bound::from((-5.12, 5.12)); 2],
+        },
+        Function {
+            func: Box::new(|coords: &Vector<2>| {
+                -20.0
+                    * E.powf(-0.2 * coords.iter().map(|x| (x * x) / 2.0).sum())
+                        .sqrt()
+                    - E.powf(coords.iter().map(|x| ((2.0 * PI * x) / 2.0).cos()).sum())
+                    + 20.0
+                    + E
+            }),
+            minima: 0.0,
+            bounds: vec![Bound::from((-32.0, 32.0)); 2],
+        },
+        Function {
+            func: Box::new(|coords: &Vector<2>| {
+                (coords.iter().map(|x| x * x).sum()
+                    - coords
+                        .iter()
+                        .enumerate()
+                        .map(|(i, x)| (*x / (i as f64).sqrt()).cos())
+                        .reduce(|acc, x| acc * x)
+                        .unwrap()
+                    + 1)
+                    / 4000.0
+            }),
+            minima: 0.0,
+            bounds: vec![Bound::from((-32.0, 32.0)); 2],
+        },
+        Function {
+            func: Box::new(|coords: &Vector<2>| {
+                (coords.iter().map(|x| x * x).sum()
+                    - coords
+                        .iter()
+                        .enumerate()
+                        .map(|(i, x)| (*x / (i as f64).sqrt()).cos())
+                        .reduce(|acc, x| acc * x)
+                        .unwrap()
+                    + 1)
+                    / 4000.0
+            }),
+            minima: 0.0,
+            bounds: vec![Bound::from((-600.0, 600.0)); 2],
+        },
+        Function {
+            func: Box::new(|coords: &Vector<2>| {
+                0.5 + (coords
+                    .iter()
+                    .map(|x| x * x)
+                    .sum::<f64>()
+                    .sqrt()
+                    .sin()
+                    .powf(2.0)
+                    - 0.5)
+                    / (1.0 + 0.001 * coords.iter().map(|x| x * x).sum::<f64>()).powf(2.0)
+            }),
+            minima: 0.0,
+            bounds: vec![Bound::from((-100.0, 100.0)); 2],
+        },
+        Function {
+            func: Box::new(|coords: &Vector<2>| {
+                coords
+                    .iter()
+                    .map(|x| x * x * x * x - 16.0 * x * x + 5.0 * x)
+                    .sum()
+                    / 2.0
+            }),
+            minima: -78.3323,
+            bounds: vec![Bound::from((-5.0, 5.0)); 2],
+        },
+        Function {
+            func: Box::new(|coords: &Vector<2>| {
+                coords.iter().map(|x| (x * x.sin() + 0.1 * x).abs()).sum()
+            }),
+            minima: 0.0,
+            bounds: vec![Bound::from((-10.0, 10.0)); 2],
         },
     ]
 }
