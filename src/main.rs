@@ -138,6 +138,7 @@ fn run_all_functions() {
     file.write(b"avg_mse, mse, time(s)\n").unwrap();
 
     // unique solution
+    println!("Starting Single Function Runs");
     for function in functions.iter() {
         let res = run_function(function);
         file.write(res.to_csv().as_bytes()).unwrap();
@@ -157,10 +158,14 @@ fn run_all_functions() {
         })
         .collect::<Vec<_>>();
 
+    println!("Starting Multi Function Runs");
+
     let start = Instant::now();
     let mut best_mse = 0.0f64;
     let mut total_mse = 0.0;
-    for _r in 0..30 {
+    for r in 0..30 {
+        println!("Run: {r}");
+
         let mut ge = GE::<(&Box<dyn Fn(&Vector<2>) -> f64>, &[Bound]), f64, Velocity>::new(
             100,
             (0.5, 0.5, 0.0),
@@ -232,7 +237,9 @@ fn run_function(function: &function::Function) -> FunctionResult {
     let mut total_mse = 0.0;
     let mut best_mse = f64::MAX;
     let start = Instant::now();
-    for _ in 0..30 {
+    for r in 0..30 {
+        println!("Run: {r}");
+
         let mut ge = GE::<(&Box<dyn Fn(&Vector<2>) -> f64>, &[Bound]), f64, Velocity>::new(
             100,
             (0.5, 0.5, 0.0),
