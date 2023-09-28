@@ -149,6 +149,21 @@ fn run_all_functions() {
     println!("Starting Multi Function Runs");
     let res = run_function(&functions);
     file.write(res.to_csv().as_bytes()).unwrap();
+
+    let mut file = File::create("./results/canonical.csv").unwrap();
+    file.write(b"avg_mse, mse, time(s)\n").unwrap();
+
+    println!("Starting Canoncial PSO");
+    println!("Starting Single Function Runs");
+    for function in &functions {
+        let res = run_canonical_pso(&[function]);
+        file.write(res.to_csv().as_bytes()).unwrap();
+    }
+
+    // general solution
+    println!("Starting Multi Function Runs");
+    let res = run_canonical_pso(&functions);
+    file.write(res.to_csv().as_bytes()).unwrap();
 }
 
 struct FunctionResult {
@@ -165,6 +180,53 @@ impl FunctionResult {
             self.mse,
             self.time.as_secs_f64()
         )
+    }
+}
+
+fn run_canonical_pso(functions: &[impl Borrow<function::Function>]) -> FunctionResult {
+    let train = functions
+        .iter()
+        .map(|function| {
+            (
+                (
+                    &function.borrow().func as &Box<dyn for<'a> Fn(&'a Vector<2>) -> f64>,
+                    function.borrow().bounds.as_slice(),
+                ),
+                function.borrow().minima,
+            )
+        })
+        .collect::<Vec<_>>();
+
+    let mut total_mse = 0.0;
+    let mut best_mse = f64::MAX;
+    let start = Instant::now();
+    for r in 0..30 {
+        println!("Run: {r}");
+
+        // running the pso
+        let mut mse = 0.0;
+        for function in functions {
+            let function = function.borrow();
+            let particle = pso(
+                100,
+                100,
+                &function.bounds,
+                mikes_pso::canonical_velocity,
+                &function.func,
+            );
+            let minima = (function.func)(&particle.coordinates());
+            mse += (minima - function.minima) * (minima - function.minima);
+        }
+
+        best_mse = best_mse.min(mse);
+        total_mse += mse;
+    }
+    let end = start.elapsed();
+
+    FunctionResult {
+        avg_mse: total_mse / 30.0,
+        mse: best_mse,
+        time: end,
     }
 }
 
