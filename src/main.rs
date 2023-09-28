@@ -3,6 +3,7 @@ mod function;
 use mikes_ge::{ge::GE, grammer::Grammer};
 use mikes_pso::{bounds::Bound, particle::Particle, pso::pso, vector::Vector};
 use rand::Rng;
+use std::borrow::Borrow;
 use std::fs::File;
 use std::io::Write;
 use std::marker::PhantomData;
@@ -139,73 +140,15 @@ fn run_all_functions() {
 
     // unique solution
     println!("Starting Single Function Runs");
-    for function in functions.iter() {
-        let res = run_function(function);
+    for function in &functions {
+        let res = run_function(&[function]);
         file.write(res.to_csv().as_bytes()).unwrap();
     }
 
     // general solution
-    let train = functions
-        .iter()
-        .map(|function| {
-            (
-                (
-                    &function.func as &Box<dyn for<'a> Fn(&'a Vector<2>) -> f64>,
-                    function.bounds.as_slice(),
-                ),
-                function.minima,
-            )
-        })
-        .collect::<Vec<_>>();
-
     println!("Starting Multi Function Runs");
-
-    let start = Instant::now();
-    let mut best_mse = 0.0f64;
-    let mut total_mse = 0.0;
-    for r in 0..30 {
-        println!("Run: {r}");
-
-        let mut ge = GE::<(&Box<dyn Fn(&Vector<2>) -> f64>, &[Bound]), f64, Velocity>::new(
-            100,
-            (0.5, 0.5, 0.0),
-            3,
-            7,
-            100,
-            4,
-            1,
-            &train,
-        );
-        let chromosome = ge.start();
-
-        // creating the velocity equation
-        let velocity = Velocity::generate(&chromosome);
-        // dbg!(&velocity);
-        let func = |current: &_, best: &_| velocity.runner(current, best);
-
-        // running the pso
-        let mut mse = 0.0;
-        for function in &functions {
-            let particle = pso(100, 100, &function.bounds, func, &function.func);
-            let minima = (function.func)(&particle.coordinates());
-            mse += (minima - mse) * (minima - mse);
-        }
-
-        best_mse = best_mse.min(mse);
-        total_mse += mse;
-    }
-    let end = start.elapsed();
-
-    file.write(
-        format!(
-            "{}, {}, {:.4}",
-            total_mse / 30.0,
-            best_mse,
-            end.as_secs_f64()
-        )
-        .as_bytes(),
-    )
-    .unwrap();
+    let res = run_function(&functions);
+    file.write(res.to_csv().as_bytes()).unwrap();
 }
 
 struct FunctionResult {
@@ -225,14 +168,19 @@ impl FunctionResult {
     }
 }
 
-fn run_function(function: &function::Function) -> FunctionResult {
-    let train = &[(
-        (
-            &function.func as &Box<dyn for<'a> Fn(&'a Vector<2>) -> f64>,
-            function.bounds.as_slice(),
-        ),
-        function.minima,
-    )];
+fn run_function(functions: &[impl Borrow<function::Function>]) -> FunctionResult {
+    let train = functions
+        .iter()
+        .map(|function| {
+            (
+                (
+                    &function.borrow().func as &Box<dyn for<'a> Fn(&'a Vector<2>) -> f64>,
+                    function.borrow().bounds.as_slice(),
+                ),
+                function.borrow().minima,
+            )
+        })
+        .collect::<Vec<_>>();
 
     let mut total_mse = 0.0;
     let mut best_mse = f64::MAX;
@@ -248,7 +196,7 @@ fn run_function(function: &function::Function) -> FunctionResult {
             100,
             4,
             1,
-            train,
+            &train,
         );
         let chromosome = ge.start();
 
@@ -258,10 +206,13 @@ fn run_function(function: &function::Function) -> FunctionResult {
         let func = |current: &_, best: &_| velocity.runner(current, best);
 
         // running the pso
-        let particle = pso(100, 100, &function.bounds, func, &function.func);
-
-        let minima = (function.func)(&particle.coordinates());
-        let mse = (minima - function.minima) * (minima - function.minima);
+        let mut mse = 0.0;
+        for function in functions {
+            let function = function.borrow();
+            let particle = pso(100, 100, &function.bounds, func, &function.func);
+            let minima = (function.func)(&particle.coordinates());
+            mse += (minima - function.minima) * (minima - function.minima);
+        }
 
         best_mse = best_mse.min(mse);
         total_mse += mse;
