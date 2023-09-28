@@ -8,7 +8,7 @@ pub struct Function {
     pub bounds: Vec<Bound>,
 }
 
-pub fn functions() -> [Function; 19] {
+pub fn functions() -> [Function; 18] {
     [
         Function {
             func: Box::new(|coords: &Vector<2>| {
@@ -153,7 +153,7 @@ pub fn functions() -> [Function; 19] {
         Function {
             func: Box::new(|coords: &Vector<2>| {
                 -20.0
-                    * E.powf(-0.2 * coords.iter().map(|x| (x * x) / 2.0).sum())
+                    * E.powf(-0.2 * coords.iter().map(|x| (x * x) / 2.0).sum::<f64>())
                         .sqrt()
                     - E.powf(coords.iter().map(|x| ((2.0 * PI * x) / 2.0).cos()).sum())
                     + 20.0
@@ -164,29 +164,14 @@ pub fn functions() -> [Function; 19] {
         },
         Function {
             func: Box::new(|coords: &Vector<2>| {
-                (coords.iter().map(|x| x * x).sum()
+                (coords.iter().map(|x| x * x).sum::<f64>()
                     - coords
                         .iter()
                         .enumerate()
                         .map(|(i, x)| (*x / (i as f64).sqrt()).cos())
                         .reduce(|acc, x| acc * x)
                         .unwrap()
-                    + 1)
-                    / 4000.0
-            }),
-            minima: 0.0,
-            bounds: vec![Bound::from((-32.0, 32.0)); 2],
-        },
-        Function {
-            func: Box::new(|coords: &Vector<2>| {
-                (coords.iter().map(|x| x * x).sum()
-                    - coords
-                        .iter()
-                        .enumerate()
-                        .map(|(i, x)| (*x / (i as f64).sqrt()).cos())
-                        .reduce(|acc, x| acc * x)
-                        .unwrap()
-                    + 1)
+                    + 1.0)
                     / 4000.0
             }),
             minima: 0.0,
@@ -212,7 +197,7 @@ pub fn functions() -> [Function; 19] {
                 coords
                     .iter()
                     .map(|x| x * x * x * x - 16.0 * x * x + 5.0 * x)
-                    .sum()
+                    .sum::<f64>()
                     / 2.0
             }),
             minima: -78.3323,

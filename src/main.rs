@@ -184,19 +184,6 @@ impl FunctionResult {
 }
 
 fn run_canonical_pso(functions: &[impl Borrow<function::Function>]) -> FunctionResult {
-    let train = functions
-        .iter()
-        .map(|function| {
-            (
-                (
-                    &function.borrow().func as &Box<dyn for<'a> Fn(&'a Vector<2>) -> f64>,
-                    function.borrow().bounds.as_slice(),
-                ),
-                function.borrow().minima,
-            )
-        })
-        .collect::<Vec<_>>();
-
     let mut total_mse = 0.0;
     let mut best_mse = f64::MAX;
     let start = Instant::now();
