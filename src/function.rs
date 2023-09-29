@@ -10,6 +10,7 @@ pub struct Function {
 
 pub fn functions() -> [Function; 18] {
     [
+        // 1
         Function {
             func: Box::new(|coords: &Vector<2>| {
                 0.26 * (coords[0] * coords[0] + coords[1] * coords[1])
@@ -18,6 +19,7 @@ pub fn functions() -> [Function; 18] {
             minima: 0.0,
             bounds: vec![Bound::from((-10.0, 10.0)), Bound::from((-10.0, 10.0))],
         },
+        // 2
         Function {
             func: Box::new(|coords: &Vector<2>| {
                 4.0 * coords[0] * coords[0] - 2.1 * coords[0] * coords[0] * coords[0] * coords[0]
@@ -29,6 +31,7 @@ pub fn functions() -> [Function; 18] {
             minima: -1.0316,
             bounds: vec![Bound::from((-5.0, 5.0)), Bound::from((-5.0, 5.0))],
         },
+        // 3
         Function {
             func: Box::new(|coords: &Vector<2>| {
                 coords
@@ -40,6 +43,7 @@ pub fn functions() -> [Function; 18] {
             minima: 0.0,
             bounds: vec![Bound::from((-10.0, 10.0)), Bound::from((-10.0, 10.0))],
         },
+        // 4
         Function {
             func: Box::new(|coords: &Vector<2>| {
                 coords.iter().map(|x| x.abs()).sum::<f64>()
@@ -52,6 +56,7 @@ pub fn functions() -> [Function; 18] {
             minima: 0.0,
             bounds: vec![Bound::from((-10.0, 10.0)), Bound::from((-10.0, 10.0))],
         },
+        // 5
         Function {
             func: Box::new(|coords: &Vector<2>| {
                 let mut x = 0.0;
@@ -66,6 +71,7 @@ pub fn functions() -> [Function; 18] {
             minima: 0.0,
             bounds: vec![Bound::from((-100.0, 100.0)), Bound::from((-100.0, 100.0))],
         },
+        // 6
         Function {
             func: Box::new(|coords: &Vector<2>| {
                 coords
@@ -77,6 +83,7 @@ pub fn functions() -> [Function; 18] {
             minima: 0.0,
             bounds: vec![Bound::from((-100.0, 100.0)), Bound::from((-100.0, 100.0))],
         },
+        // 7
         Function {
             func: Box::new(|coords: &Vector<2>| {
                 coords
@@ -88,6 +95,7 @@ pub fn functions() -> [Function; 18] {
             minima: 0.0,
             bounds: vec![Bound::from((-10.0, 10.0)), Bound::from((-10.0, 10.0))],
         },
+        // 8
         Function {
             func: Box::new(|coords: &Vector<2>| {
                 coords
@@ -99,6 +107,7 @@ pub fn functions() -> [Function; 18] {
             minima: 0.0,
             bounds: vec![Bound::from((-1.28, 1.28)), Bound::from((-1.28, 1.28))],
         },
+        // 9
         Function {
             func: Box::new(|coords: &Vector<2>| {
                 coords
@@ -110,6 +119,7 @@ pub fn functions() -> [Function; 18] {
             minima: 0.0,
             bounds: vec![Bound::from((-1.0, 1.0)), Bound::from((-1.0, 1.0))],
         },
+        // 10
         Function {
             func: Box::new(|coords: &Vector<2>| {
                 coords
@@ -121,6 +131,7 @@ pub fn functions() -> [Function; 18] {
             minima: 0.0,
             bounds: vec![Bound::from((-100.0, 100.0)), Bound::from((-100.0, 100.0))],
         },
+        // 11
         Function {
             func: Box::new(|coords: &Vector<2>| {
                 coords.iter().map(|x| (x + 0.5).floor().powf(2.0)).sum()
@@ -128,6 +139,7 @@ pub fn functions() -> [Function; 18] {
             minima: 0.0,
             bounds: vec![Bound::from((-1.28, 1.28)); 2],
         },
+        // 12
         Function {
             func: Box::new(|coords: &Vector<2>| {
                 coords
@@ -140,6 +152,7 @@ pub fn functions() -> [Function; 18] {
             minima: 0.0,
             bounds: vec![Bound::from((-1.28, 1.28)); 2],
         },
+        // 13
         Function {
             func: Box::new(|coords: &Vector<2>| {
                 coords
@@ -150,6 +163,7 @@ pub fn functions() -> [Function; 18] {
             minima: 0.0,
             bounds: vec![Bound::from((-5.12, 5.12)); 2],
         },
+        // 14
         Function {
             func: Box::new(|coords: &Vector<2>| {
                 -20.0
@@ -162,21 +176,22 @@ pub fn functions() -> [Function; 18] {
             minima: 0.0,
             bounds: vec![Bound::from((-32.0, 32.0)); 2],
         },
+        // 15
         Function {
             func: Box::new(|coords: &Vector<2>| {
-                (coords.iter().map(|x| x * x).sum::<f64>()
+                (coords.iter().map(|x| x * x).sum::<f64>()) / 4000.0
                     - coords
                         .iter()
                         .enumerate()
                         .map(|(i, x)| (*x / (i as f64).sqrt()).cos())
                         .reduce(|acc, x| acc * x)
                         .unwrap()
-                    + 1.0)
-                    / 4000.0
+                    + 1.0
             }),
             minima: 0.0,
             bounds: vec![Bound::from((-600.0, 600.0)); 2],
         },
+        // 16
         Function {
             func: Box::new(|coords: &Vector<2>| {
                 0.5 + (coords
@@ -192,17 +207,19 @@ pub fn functions() -> [Function; 18] {
             minima: 0.0,
             bounds: vec![Bound::from((-100.0, 100.0)); 2],
         },
+        // 17
         Function {
             func: Box::new(|coords: &Vector<2>| {
                 coords
                     .iter()
-                    .map(|x| x * x * x * x - 16.0 * x * x + 5.0 * x)
+                    .map(|x| (x * x * x * x - 16.0 * x * x + 5.0 * x) / coords.size() as f64)
                     .sum::<f64>()
                     / 2.0
             }),
             minima: -78.3323,
             bounds: vec![Bound::from((-5.0, 5.0)); 2],
         },
+        // 18
         Function {
             func: Box::new(|coords: &Vector<2>| {
                 coords.iter().map(|x| (x * x.sin() + 0.1 * x).abs()).sum()
