@@ -10,7 +10,7 @@ use std::marker::PhantomData;
 use std::time::{Duration, Instant};
 
 #[derive(Debug)]
-enum Velocity<'a> {
+enum Velocity<'a, const SIZE: usize> {
     CurrentCoords,
     BestCoords,
     CurrentBestCoords,
@@ -34,8 +34,8 @@ enum ScalarOps {
     Sub(Box<ScalarOps>, Box<ScalarOps>),
 }
 
-impl<'a> Grammer for Velocity<'a> {
-    type Input = (&'a Box<dyn Fn(&Vector<2>) -> f64>, &'a [Bound]);
+impl<'a, const SIZE: usize> Grammer for Velocity<'a, SIZE> {
+    type Input = (&'a Box<dyn Fn(&Vector<SIZE>) -> f64>, &'a [Bound]);
     type Output = f64;
 
     fn run(&self, input: &Self::Input) -> Self::Output {
@@ -49,8 +49,8 @@ impl<'a> Grammer for Velocity<'a> {
     }
 }
 
-impl<'a> Velocity<'a> {
-    fn runner(&self, current: &Particle<2>, best: &Particle<2>) -> Vector<2> {
+impl<'a, const SIZE: usize> Velocity<'a, SIZE> {
+    fn runner(&self, current: &Particle<SIZE>, best: &Particle<SIZE>) -> Vector<SIZE> {
         match self {
             Velocity::CurrentCoords => current.coordinates(),
             Velocity::BestCoords => best.coordinates(),
@@ -133,9 +133,10 @@ impl ScalarOps {
 }
 
 fn run_all_functions() {
-    let functions = function::functions();
+    const SIZE: usize = 30;
+    let functions = function::functions::<SIZE>();
 
-    let mut file = File::create("./results/result.csv").unwrap();
+    let mut file = File::create(format!("./results/result_{}.csv", SIZE)).unwrap();
     file.write(b"avg_mse, mse, time(s)\n").unwrap();
 
     // unique solution
@@ -150,7 +151,7 @@ fn run_all_functions() {
     let res = run_function(&functions);
     file.write(res.to_csv().as_bytes()).unwrap();
 
-    let mut file = File::create("./results/canonical.csv").unwrap();
+    let mut file = File::create(format!("./results/canonical_{}.csv", SIZE)).unwrap();
     file.write(b"avg_mse, mse, time(s)\n").unwrap();
 
     println!("Starting Canoncial PSO");
@@ -183,7 +184,9 @@ impl FunctionResult {
     }
 }
 
-fn run_canonical_pso(functions: &[impl Borrow<function::Function>]) -> FunctionResult {
+fn run_canonical_pso<const SIZE: usize>(
+    functions: &[impl Borrow<function::Function<SIZE>>],
+) -> FunctionResult {
     let mut total_mse = 0.0;
     let mut best_mse = f64::MAX;
     let start = Instant::now();
@@ -217,13 +220,15 @@ fn run_canonical_pso(functions: &[impl Borrow<function::Function>]) -> FunctionR
     }
 }
 
-fn run_function(functions: &[impl Borrow<function::Function>]) -> FunctionResult {
+fn run_function<const SIZE: usize>(
+    functions: &[impl Borrow<function::Function<SIZE>>],
+) -> FunctionResult {
     let train = functions
         .iter()
         .map(|function| {
             (
                 (
-                    &function.borrow().func as &Box<dyn for<'a> Fn(&'a Vector<2>) -> f64>,
+                    &function.borrow().func as &Box<dyn for<'a> Fn(&'a Vector<SIZE>) -> f64>,
                     function.borrow().bounds.as_slice(),
                 ),
                 function.borrow().minima,
@@ -237,7 +242,7 @@ fn run_function(functions: &[impl Borrow<function::Function>]) -> FunctionResult
     for r in 0..30 {
         println!("Run: {r}");
 
-        let mut ge = GE::<(&Box<dyn Fn(&Vector<2>) -> f64>, &[Bound]), f64, Velocity>::new(
+        let mut ge = GE::<(&Box<dyn Fn(&Vector<SIZE>) -> f64>, &[Bound]), f64, Velocity<SIZE>>::new(
             100,
             (0.5, 0.5, 0.0),
             3,
