@@ -8,7 +8,7 @@ pub struct Function<const SIZE: usize> {
     pub bounds: Vec<Bound>,
 }
 
-pub fn functions<const SIZE: usize>() -> [Function<SIZE>; 17] {
+pub fn functions<const SIZE: usize>() -> [Function<SIZE>; 16] {
     [
         // 1
         Function {
@@ -222,17 +222,17 @@ pub fn functions<const SIZE: usize>() -> [Function<SIZE>; 17] {
             bounds: vec![Bound::from((-100.0, 100.0)); SIZE],
         },
         // 17
-        Function {
-            func: Box::new(|coords: &Vector<SIZE>| {
-                coords
-                    .iter()
-                    .map(|x| x * x * x * x - 16.0 * x * x + 5.0 * x)
-                    .sum::<f64>()
-                    / coords.size() as f64
-            }),
-            minima: -78.3323,
-            bounds: vec![Bound::from((-5.0, 5.0)); SIZE],
-        },
+        // Function {
+        //     func: Box::new(|coords: &Vector<SIZE>| {
+        //         coords
+        //             .iter()
+        //             .map(|x| x * x * x * x - 16.0 * x * x + 5.0 * x)
+        //             .sum::<f64>()
+        //             / coords.size() as f64
+        //     }),
+        //     minima: -78.3323,
+        //     bounds: vec![Bound::from((-5.0, 5.0)); SIZE],
+        // },
         // 18
         Function {
             func: Box::new(|coords: &Vector<SIZE>| {

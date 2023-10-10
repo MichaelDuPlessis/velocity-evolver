@@ -140,29 +140,29 @@ fn run_all_functions() {
     file.write(b"avg_mse, mse, time(s)\n").unwrap();
 
     // unique solution
-    println!("Starting Single Function Runs");
+    // println!("Starting Single Function Runs");
     for function in &functions {
-        let res = run_function(&[function]);
+        let res = run_functions(&[function]);
         file.write(res.to_csv().as_bytes()).unwrap();
     }
 
     // general solution
-    println!("Starting Multi Function Runs");
-    let res = run_function(&functions);
+    // println!("Starting Multi Function Runs");
+    let res = run_functions(&functions);
     file.write(res.to_csv().as_bytes()).unwrap();
 
     let mut file = File::create(format!("./results/canonical_{}.csv", SIZE)).unwrap();
     file.write(b"avg_mse, mse, time(s)\n").unwrap();
 
-    println!("Starting Canoncial PSO");
-    println!("Starting Single Function Runs");
+    // println!("Starting Canoncial PSO");
+    // println!("Starting Single Function Runs");
     for function in &functions {
         let res = run_canonical_pso(&[function]);
         file.write(res.to_csv().as_bytes()).unwrap();
     }
 
     // general solution
-    println!("Starting Multi Function Runs");
+    // println!("Starting Multi Function Runs");
     let res = run_canonical_pso(&functions);
     file.write(res.to_csv().as_bytes()).unwrap();
 }
@@ -184,6 +184,22 @@ impl FunctionResult {
     }
 }
 
+pub fn canonical_velocity<const DIMS: usize>(
+    current: &Particle<DIMS>,
+    best: &Particle<DIMS>,
+) -> Vector<DIMS> {
+    let c1 = 1.3;
+    let c2 = 1.7;
+    let w = 0.6;
+    let (r1, r2): (f64, f64) = rand::random();
+
+    let vel = w * current.velocity()
+        + c1 * r1 * (best.coordinates() - current.coordinates())
+        + c2 * r2 * (current.best() - current.coordinates());
+
+    vel
+}
+
 fn run_canonical_pso<const SIZE: usize>(
     functions: &[impl Borrow<function::Function<SIZE>>],
 ) -> FunctionResult {
@@ -191,7 +207,7 @@ fn run_canonical_pso<const SIZE: usize>(
     let mut best_mse = f64::MAX;
     let start = Instant::now();
     for r in 0..30 {
-        println!("Run: {r}");
+        // println!("Run: {r}");
 
         // running the pso
         let mut mse = 0.0;
@@ -201,7 +217,7 @@ fn run_canonical_pso<const SIZE: usize>(
                 100,
                 100,
                 &function.bounds,
-                mikes_pso::canonical_velocity,
+                canonical_velocity,
                 &function.func,
             );
             let minima = (function.func)(&particle.coordinates());
@@ -220,7 +236,7 @@ fn run_canonical_pso<const SIZE: usize>(
     }
 }
 
-fn run_function<const SIZE: usize>(
+fn run_functions<const SIZE: usize>(
     functions: &[impl Borrow<function::Function<SIZE>>],
 ) -> FunctionResult {
     let train = functions
@@ -240,21 +256,21 @@ fn run_function<const SIZE: usize>(
     let mut best_mse = f64::MAX;
     let start = Instant::now();
     for r in 0..30 {
-        println!("Run: {r}");
+        // println!("Run: {r}");
 
         let mut ge = GE::<(&Box<dyn Fn(&Vector<SIZE>) -> f64>, &[Bound]), f64, Velocity<SIZE>>::new(
             100,
-            (0.5, 0.5, 0.0),
+            (0.7, 0.3, 0.0),
             3,
-            7,
+            10,
             100,
-            4,
+            5,
             1,
             &train,
         );
         let chromosome = ge.start();
 
-        // crearing the velocity equation
+        // creating the velocity equation
         let velocity = Velocity::generate(&chromosome);
         // dbg!(&velocity);
         let func = |current: &_, best: &_| velocity.runner(current, best);
