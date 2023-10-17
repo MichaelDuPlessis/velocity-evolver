@@ -20,4 +20,4 @@ def csv_to_latex_table(csv_path):
     print(latex_table)
 
 if __name__ == "__main__":
-    csv_to_latex_table("./results/result_30.csv")
+    csv_to_latex_table("./results/canonical_30.csv")
