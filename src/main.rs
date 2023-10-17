@@ -14,8 +14,8 @@ fn run_all_functions() {
     const SIZE: usize = 30;
     let functions = function::functions::<SIZE>();
 
-    let mut file = File::create(format!("./results/result_{}.csv", SIZE)).unwrap();
-    file.write(b"avg_mse, mse, time(s)\n").unwrap();
+    let mut file = File::create("./results/disposable.csv").unwrap();
+    file.write(b"min, mean, std, time(s)\n").unwrap();
 
     // unique solution
     // println!("Starting Single Function Runs");
@@ -26,42 +26,102 @@ fn run_all_functions() {
 
     // general solution
     // println!("Starting Multi Function Runs");
-    let res = run_functions(&functions);
-    file.write(res.to_csv().as_bytes()).unwrap();
+    // let res = run_functions(&functions);
+    // file.write(res.to_csv().as_bytes()).unwrap();
 
-    let mut file = File::create(format!("./results/canonical_{}.csv", SIZE)).unwrap();
-    file.write(b"avg_mse, mse, time(s)\n").unwrap();
+    let mut file = File::create("./results/reusable.csv").unwrap();
+    file.write(b"min, mean, std, time(s)\n").unwrap();
+
+    let train = functions
+        .iter()
+        .map(|function| {
+            (
+                (
+                    &function.borrow().func as &Box<dyn for<'a> Fn(&'a Vector<SIZE>) -> f64>,
+                    function.borrow().bounds.as_slice(),
+                ),
+                function.borrow().minima,
+            )
+        })
+        .collect::<Vec<_>>();
+
+    let start = Instant::now();
+    // println!("Run: {r}");
+
+    let mut ge = GE::<(&Box<dyn Fn(&Vector<SIZE>) -> f64>, &[Bound]), f64, Velocity<SIZE>>::new(
+        100,
+        (0.7, 0.3, 0.0),
+        3,
+        10,
+        100,
+        5,
+        1,
+        &train,
+    );
+    let chromosome = ge.start();
+    let end = start.elapsed();
+
+    // creating the velocity equation
+    let velocity = Velocity::generate(&chromosome);
+    // dbg!(&velocity);
+    let func = |current: &_, best: &_| velocity.runner(current, best);
+
+    // running the pso
+    for function in functions {
+        let mut results = Vec::with_capacity(30);
+        for _ in 0..30 {
+            let function = function.borrow();
+            let particle = pso(100, 100, &function.bounds, func, &function.func);
+            let minima = (function.func)(&particle.coordinates());
+            results.push(minima)
+        }
+        let mut min = f64::NAN;
+        for result in &results {
+            if result < &min {
+                min = *result
+            }
+        }
+        let mean = results.iter().sum::<f64>() / 30.0;
+        let std = (results.iter().map(|r| (r - mean) * (r - mean)).sum::<f64>()
+            / results.len() as f64)
+            .sqrt();
+        file.write(format!("{min}, {mean}, {std}, {:.4}\n", end.as_secs_f64()).as_bytes())
+            .unwrap();
+    }
 
     // println!("Starting Canoncial PSO");
     // println!("Starting Single Function Runs");
-    for function in &functions {
-        let res = run_canonical_pso(&[function]);
-        file.write(res.to_csv().as_bytes()).unwrap();
-    }
+    // for function in &functions {
+    //     let res = run_canonical_pso(&[function]);
+    //     file.write(res.to_csv().as_bytes()).unwrap();
+    // }
 
     // general solution
     // println!("Starting Multi Function Runs");
-    let res = run_canonical_pso(&functions);
-    file.write(res.to_csv().as_bytes()).unwrap();
+    // let res = run_canonical_pso(&functions);
+    // file.write(res.to_csv().as_bytes()).unwrap();
 }
 
 struct FunctionResult {
-    avg_mse: f64,
-    mse: f64,
+    min: f64,
+    mean: f64,
+    std: f64,
     time: Duration,
 }
 
 impl FunctionResult {
     fn to_csv(&self) -> String {
         format!(
-            "{}, {}, {:.4}\n",
-            self.avg_mse,
-            self.mse,
+            "{}, {}, {}, {:.4}\n",
+            self.min,
+            self.mean,
+            self.std,
             self.time.as_secs_f64()
         )
     }
 }
 
+/*
 pub fn canonical_velocity<const DIMS: usize>(
     current: &Particle<DIMS>,
     best: &Particle<DIMS>,
@@ -113,6 +173,7 @@ fn run_canonical_pso<const SIZE: usize>(
         time: end,
     }
 }
+*/
 
 fn run_functions<const SIZE: usize>(
     functions: &[impl Borrow<function::Function<SIZE>>],
@@ -130,8 +191,7 @@ fn run_functions<const SIZE: usize>(
         })
         .collect::<Vec<_>>();
 
-    let mut total_mse = 0.0;
-    let mut best_mse = f64::MAX;
+    let mut results = Vec::with_capacity(30);
     let start = Instant::now();
     for r in 0..30 {
         // println!("Run: {r}");
@@ -154,22 +214,30 @@ fn run_functions<const SIZE: usize>(
         let func = |current: &_, best: &_| velocity.runner(current, best);
 
         // running the pso
-        let mut mse = 0.0;
         for function in functions {
             let function = function.borrow();
             let particle = pso(100, 100, &function.bounds, func, &function.func);
             let minima = (function.func)(&particle.coordinates());
-            mse += (minima - function.minima) * (minima - function.minima);
+            results.push(minima)
         }
-
-        best_mse = best_mse.min(mse);
-        total_mse += mse;
     }
     let end = start.elapsed();
 
+    let mut min = f64::MAX;
+    for result in &results {
+        if result < &min {
+            min = *result
+        }
+    }
+
+    let mean = results.iter().sum::<f64>() / 30.0;
+    let std = (results.iter().map(|r| (r - mean) * (r - mean)).sum::<f64>() / results.len() as f64)
+        .sqrt();
+
     FunctionResult {
-        avg_mse: total_mse / 30.0,
-        mse: best_mse,
+        min,
+        mean,
+        std,
         time: end,
     }
 }
