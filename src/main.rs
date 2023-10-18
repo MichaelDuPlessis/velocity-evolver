@@ -55,7 +55,7 @@ fn run_all_functions() {
         10,
         100,
         5,
-        1,
+        30,
         &train,
     );
     let chromosome = ge.start();
