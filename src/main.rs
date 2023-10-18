@@ -13,17 +13,17 @@ use velocity::Velocity;
 fn run_all_functions() {
     const SIZE: usize = 30;
     let functions = function::functions::<SIZE>();
-
-    let mut file = File::create("./results/disposable.csv").unwrap();
-    file.write(b"min, mean, std, time(s)\n").unwrap();
-
-    // unique solution
-    // println!("Starting Single Function Runs");
-    for function in &functions {
-        let res = run_functions(&[function]);
-        file.write(res.to_csv().as_bytes()).unwrap();
-    }
-
+    //
+    // let mut file = File::create("./results/disposable.csv").unwrap();
+    // file.write(b"min, mean, std, time(s)\n").unwrap();
+    //
+    // // unique solution
+    // // println!("Starting Single Function Runs");
+    // for function in &functions {
+    //     let res = run_functions(&[function]);
+    //     file.write(res.to_csv().as_bytes()).unwrap();
+    // }
+    //
     // general solution
     // println!("Starting Multi Function Runs");
     // let res = run_functions(&functions);
@@ -75,7 +75,7 @@ fn run_all_functions() {
             let minima = (function.func)(&particle.coordinates());
             results.push(minima)
         }
-        let mut min = f64::NAN;
+        let mut min = f64::MAX;
         for result in &results {
             if result < &min {
                 min = *result
