@@ -8,7 +8,7 @@ pub struct Function<const SIZE: usize> {
     pub bounds: Vec<Bound>,
 }
 
-pub fn functions<const SIZE: usize>() -> [Function<SIZE>; 16] {
+pub fn functions<const SIZE: usize>() -> [Function<SIZE>; 17] {
     [
         // 1
         Function {
@@ -33,15 +33,9 @@ pub fn functions<const SIZE: usize>() -> [Function<SIZE>; 16] {
         },
         // 3 - sphere
         Function {
-            func: Box::new(|coords: &Vector<SIZE>| {
-                coords
-                    .iter()
-                    .enumerate()
-                    .map(|(i, &x)| i as f64 * x * x)
-                    .sum()
-            }),
+            func: Box::new(|coords: &Vector<SIZE>| coords.iter().map(|x| x * x).sum()),
             minima: 0.0,
-            bounds: vec![Bound::from((-10.0, 10.0)); SIZE],
+            bounds: vec![Bound::from((-100.0, 100.0)); SIZE],
         },
         // 4
         Function {
@@ -60,9 +54,9 @@ pub fn functions<const SIZE: usize>() -> [Function<SIZE>; 16] {
         Function {
             func: Box::new(|coords: &Vector<SIZE>| {
                 let mut x = 0.0;
-                for i in 0..2 {
+                for i in 0..coords.size() {
                     let mut y = 0.0;
-                    for j in 0..i {
+                    for j in 0..=i {
                         y += coords[j]
                     }
                     x += y * y
@@ -91,7 +85,7 @@ pub fn functions<const SIZE: usize>() -> [Function<SIZE>; 16] {
                 coords
                     .iter()
                     .enumerate()
-                    .map(|(i, x)| i as f64 * x * x)
+                    .map(|(i, x)| (i + 1) as f64 * x * x)
                     .sum()
             }),
             minima: 0.0,
@@ -103,7 +97,7 @@ pub fn functions<const SIZE: usize>() -> [Function<SIZE>; 16] {
                 coords
                     .iter()
                     .enumerate()
-                    .map(|(i, x)| i as f64 * x * x * x * x)
+                    .map(|(i, x)| (i + 1) as f64 * x * x * x * x)
                     .sum()
             }),
             minima: 0.0,
@@ -115,7 +109,7 @@ pub fn functions<const SIZE: usize>() -> [Function<SIZE>; 16] {
                 coords
                     .iter()
                     .enumerate()
-                    .map(|(i, x)| x.abs().powi(i as i32 + 1))
+                    .map(|(i, x)| x.abs().powi(i as i32 + 2))
                     .sum()
             }),
             minima: 0.0,
@@ -128,9 +122,7 @@ pub fn functions<const SIZE: usize>() -> [Function<SIZE>; 16] {
                     .iter()
                     .enumerate()
                     .map(|(i, x)| {
-                        (10.0_f64.powf(6.0)).powf((i as f64 - 1.0) / (coords.size() as f64 - 1.0))
-                            * x
-                            * x
+                        (10.0_f64.powf(6.0)).powf((i as f64) / (coords.size() as f64 - 1.0)) * x * x
                     })
                     .sum()
             }),
@@ -151,7 +143,7 @@ pub fn functions<const SIZE: usize>() -> [Function<SIZE>; 16] {
                 coords
                     .iter()
                     .enumerate()
-                    .map(|(i, x)| i as f64 * x * x * x * x)
+                    .map(|(i, x)| (i + 1) as f64 * x * x * x * x)
                     .sum::<f64>()
                     + rand::thread_rng().gen_range(0.0..1.0)
             }),
@@ -191,20 +183,20 @@ pub fn functions<const SIZE: usize>() -> [Function<SIZE>; 16] {
             bounds: vec![Bound::from((-32.0, 32.0)); SIZE],
         },
         // 15
-        // Function {
-        //     func: Box::new(|coords: &Vector<SIZE>| {
-        //         (coords.iter().map(|x| x * x).sum::<f64>()) / 4000.0
-        //             - coords
-        //                 .iter()
-        //                 .enumerate()
-        //                 .map(|(i, x)| (*x / (i as f64).sqrt()).cos())
-        //                 .reduce(|acc, x| acc * x)
-        //                 .unwrap()
-        //             + 1.0
-        //     }),
-        //     minima: 0.0,
-        //     bounds: vec![Bound::from((-600.0, 600.0)); SIZE],
-        // },
+        Function {
+            func: Box::new(|coords: &Vector<SIZE>| {
+                (coords.iter().map(|x| x * x).sum::<f64>()) / 4000.0
+                    - coords
+                        .iter()
+                        .enumerate()
+                        .map(|(i, x)| (*x / ((i + 1) as f64).sqrt()).cos())
+                        .reduce(|acc, x| acc * x)
+                        .unwrap()
+                    + 1.0
+            }),
+            minima: 0.0,
+            bounds: vec![Bound::from((-600.0, 600.0)); SIZE],
+        },
         // 16
         Function {
             func: Box::new(|coords: &Vector<SIZE>| {

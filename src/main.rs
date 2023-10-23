@@ -13,19 +13,20 @@ use std::time::{Duration, Instant};
 use velocity::Velocity;
 
 fn run_all_functions() {
-    const SIZE: usize = 100;
+    const SIZE: usize = 30;
     let functions = function::functions::<SIZE>();
     //
-    let mut file = File::create("./results_copy/disposable100.csv").unwrap();
+    let mut file = File::create("./results_copy/canonical30.csv").unwrap();
     file.write(b"min, mean, std, time(s)\n").unwrap();
 
     // unique solution
     println!("Starting Single Function Runs");
     for (i, function) in functions.iter().enumerate() {
         // println!("Function: {i}");
-        let res = run_functions(&[function]);
+        let res = run_canonical_pso(&[function]);
         file.write(res.to_csv().as_bytes()).unwrap();
     }
+    return;
 
     // general solution
     println!("Starting Multi Function Runs");
@@ -126,9 +127,9 @@ pub fn canonical_velocity<const DIMS: usize>(
     current: &Particle<DIMS>,
     best: &Particle<DIMS>,
 ) -> Vector<DIMS> {
-    let c1 = 1.2;
-    let c2 = 1.2;
-    let w = 0.1;
+    let c1 = 2.0;
+    let c2 = 2.0;
+    let w = 0.4;
     let (r1, r2): (f64, f64) = rand::random();
 
     let vel = w * current.velocity()
