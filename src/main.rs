@@ -1,9 +1,11 @@
 mod function;
 mod velocity;
 
+use function::Function;
 use mikes_ge::ge::GE;
-use mikes_ge::grammer::Grammer;
-use mikes_pso::{bounds::Bound, particle::Particle, pso::pso, vector::Vector};
+use mikes_ge::grammar::Grammar;
+use mikes_pso::particle::Particle;
+use mikes_pso::{bounds::Bound, pso::pso, vector::Vector};
 use std::borrow::Borrow;
 use std::fs::File;
 use std::io::Write;
@@ -11,25 +13,24 @@ use std::time::{Duration, Instant};
 use velocity::Velocity;
 
 fn run_all_functions() {
-    const SIZE: usize = 30;
+    const SIZE: usize = 100;
     let functions = function::functions::<SIZE>();
     //
-    // let mut file = File::create("./results/disposable.csv").unwrap();
-    // file.write(b"min, mean, std, time(s)\n").unwrap();
-    //
-    // // unique solution
-    // // println!("Starting Single Function Runs");
-    // for function in &functions {
-    //     let res = run_functions(&[function]);
-    //     file.write(res.to_csv().as_bytes()).unwrap();
-    // }
-    //
-    // general solution
-    // println!("Starting Multi Function Runs");
-    // let res = run_functions(&functions);
-    // file.write(res.to_csv().as_bytes()).unwrap();
+    let mut file = File::create("./results_copy/disposable100.csv").unwrap();
+    file.write(b"min, mean, std, time(s)\n").unwrap();
 
-    let mut file = File::create("./results/reusable.csv").unwrap();
+    // unique solution
+    println!("Starting Single Function Runs");
+    for (i, function) in functions.iter().enumerate() {
+        // println!("Function: {i}");
+        let res = run_functions(&[function]);
+        file.write(res.to_csv().as_bytes()).unwrap();
+    }
+
+    // general solution
+    println!("Starting Multi Function Runs");
+
+    let mut file = File::create("./results_copy/reusable100.csv").unwrap();
     file.write(b"min, mean, std, time(s)\n").unwrap();
 
     let train = functions
@@ -121,14 +122,13 @@ impl FunctionResult {
     }
 }
 
-/*
 pub fn canonical_velocity<const DIMS: usize>(
     current: &Particle<DIMS>,
     best: &Particle<DIMS>,
 ) -> Vector<DIMS> {
-    let c1 = 1.3;
-    let c2 = 1.7;
-    let w = 0.6;
+    let c1 = 1.2;
+    let c2 = 1.2;
+    let w = 0.1;
     let (r1, r2): (f64, f64) = rand::random();
 
     let vel = w * current.velocity()
@@ -141,39 +141,45 @@ pub fn canonical_velocity<const DIMS: usize>(
 fn run_canonical_pso<const SIZE: usize>(
     functions: &[impl Borrow<function::Function<SIZE>>],
 ) -> FunctionResult {
-    let mut total_mse = 0.0;
-    let mut best_mse = f64::MAX;
+    let mut results = Vec::with_capacity(30);
     let start = Instant::now();
     for r in 0..30 {
         // println!("Run: {r}");
 
         // running the pso
-        let mut mse = 0.0;
         for function in functions {
             let function = function.borrow();
             let particle = pso(
-                100,
-                100,
+                40,
+                2500,
                 &function.bounds,
                 canonical_velocity,
                 &function.func,
             );
             let minima = (function.func)(&particle.coordinates());
-            mse += (minima - function.minima) * (minima - function.minima);
+            results.push(minima)
         }
-
-        best_mse = best_mse.min(mse);
-        total_mse += mse;
     }
     let end = start.elapsed();
 
+    let mut min = f64::MAX;
+    for result in &results {
+        if result < &min {
+            min = *result
+        }
+    }
+
+    let mean = results.iter().sum::<f64>() / 30.0;
+    let std = (results.iter().map(|r| (r - mean) * (r - mean)).sum::<f64>() / results.len() as f64)
+        .sqrt();
+
     FunctionResult {
-        avg_mse: total_mse / 30.0,
-        mse: best_mse,
+        min,
+        mean,
+        std,
         time: end,
     }
 }
-*/
 
 fn run_functions<const SIZE: usize>(
     functions: &[impl Borrow<function::Function<SIZE>>],
@@ -210,6 +216,7 @@ fn run_functions<const SIZE: usize>(
 
         // creating the velocity equation
         let velocity = Velocity::generate(&chromosome);
+        // println!("{:?}", velocity);
         // dbg!(&velocity);
         let func = |current: &_, best: &_| velocity.runner(current, best);
 
@@ -244,4 +251,16 @@ fn run_functions<const SIZE: usize>(
 
 fn main() {
     run_all_functions()
+    // let func = Function {
+    //     func: Box::new(|coords: &Vector<30>| {
+    //         0.26 * (coords[0] * coords[0] + coords[1] * coords[1]) - 0.48 * coords[0] * coords[1]
+    //     }),
+    //     minima: 0.0,
+    //     bounds: vec![Bound::from((-10.0, 10.0)); 30],
+    // };
+    // let f = |current: &Particle<30>, best: &Particle<30>| {
+    //     current.best() - (best.coordinates() + current.best())
+    // };
+    // let particle = pso(100, 100, &func.bounds, &f, &func.func);
+    // println!("{particle:?}");
 }

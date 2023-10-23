@@ -1,4 +1,4 @@
-use mikes_ge::grammer::Grammer;
+use mikes_ge::grammar::Grammar;
 use mikes_pso::{bounds::Bound, particle::Particle, pso::pso, vector::Vector};
 use rand::Rng;
 use std::marker::PhantomData;
@@ -28,7 +28,7 @@ pub enum ScalarOps {
     Sub(Box<ScalarOps>, Box<ScalarOps>),
 }
 
-impl<'a, const SIZE: usize> Grammer for Velocity<'a, SIZE> {
+impl<'a, const SIZE: usize> Grammar for Velocity<'a, SIZE> {
     type Input = (&'a Box<dyn Fn(&Vector<SIZE>) -> f64>, &'a [Bound]);
     type Output = f64;
 
