@@ -3,7 +3,7 @@ use rand::Rng;
 use std::f64::consts::{E, PI};
 
 pub struct Function<const SIZE: usize> {
-    pub func: Box<dyn Fn(&Vector<SIZE>) -> f64>,
+    pub func: Box<dyn Fn(&Vector<SIZE>) -> f64 + Send>,
     pub minima: f64,
     pub bounds: Vec<Bound>,
 }

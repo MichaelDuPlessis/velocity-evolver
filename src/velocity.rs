@@ -29,7 +29,7 @@ pub enum ScalarOps {
 }
 
 impl<'a, const SIZE: usize> Grammar for Velocity<'a, SIZE> {
-    type Input = (&'a Box<dyn Fn(&Vector<SIZE>) -> f64>, &'a [Bound]);
+    type Input = (&'a Box<dyn Fn(&Vector<SIZE>) -> f64 + Send>, &'a [Bound]);
     type Output = f64;
 
     fn run(&self, input: &Self::Input) -> Self::Output {

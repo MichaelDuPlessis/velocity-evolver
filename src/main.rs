@@ -9,22 +9,35 @@ use mikes_pso::{bounds::Bound, pso::pso, vector::Vector};
 use std::borrow::Borrow;
 use std::fs::File;
 use std::io::Write;
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
+use threadpool::ThreadPool;
 use velocity::Velocity;
 
 fn run_all_functions() {
     const SIZE: usize = 30;
     let functions = function::functions::<SIZE>();
     //
-    let mut file = File::create("./results_copy/disposable30.csv").unwrap();
-    file.write(b"min, mean, std, time(s)\n").unwrap();
+    let file = Arc::new(Mutex::new(
+        File::create("./results_copy/disposable30.csv").unwrap(),
+    ));
+    file.lock()
+        .unwrap()
+        .write(b"min, mean, std, time(s)\n")
+        .unwrap();
+
+    let pool = ThreadPool::default();
 
     // unique solution
     println!("Starting Single Function Runs");
-    for (i, function) in functions.iter().enumerate() {
-        println!("Function: {i}");
-        let res = run_functions(&[function]);
-        file.write(res.to_csv().as_bytes()).unwrap();
+    for (i, function) in functions.into_iter().enumerate() {
+        let file = Arc::clone(&file);
+        pool.execute(move || {
+            println!("Starting function: {i}");
+            let res = run_functions(function);
+            file.lock().unwrap().write(res.to_csv().as_bytes()).unwrap();
+            println!("Finished function: {i}");
+        });
     }
 
     // general solution
@@ -33,12 +46,13 @@ fn run_all_functions() {
     let mut file = File::create("./results_copy/reusable30.csv").unwrap();
     file.write(b"min, mean, std, time(s)\n").unwrap();
 
+    let functions = function::functions::<SIZE>();
     let train = functions
         .iter()
         .map(|function| {
             (
                 (
-                    &function.borrow().func as &Box<dyn for<'a> Fn(&'a Vector<SIZE>) -> f64>,
+                    &function.borrow().func as &Box<dyn for<'a> Fn(&'a Vector<SIZE>) -> f64 + Send>,
                     function.borrow().bounds.as_slice(),
                 ),
                 function.borrow().minima,
@@ -49,16 +63,17 @@ fn run_all_functions() {
     let start = Instant::now();
     // println!("Run: {r}");
 
-    let mut ge = GE::<(&Box<dyn Fn(&Vector<SIZE>) -> f64>, &[Bound]), f64, Velocity<SIZE>>::new(
-        100,
-        (0.7, 0.3, 0.0),
-        3,
-        10,
-        100,
-        5,
-        30,
-        &train,
-    );
+    let mut ge =
+        GE::<(&Box<dyn Fn(&Vector<SIZE>) -> f64 + Send>, &[Bound]), f64, Velocity<SIZE>>::new(
+            100,
+            (0.7, 0.3, 0.0),
+            3,
+            10,
+            100,
+            5,
+            30,
+            &train,
+        );
     let chromosome = ge.start();
     let end = start.elapsed();
 
@@ -68,7 +83,7 @@ fn run_all_functions() {
     let func = |current: &_, best: &_| velocity.runner(current, best);
 
     // running the pso
-    for function in functions {
+    for function in &functions {
         let mut results = Vec::with_capacity(30);
         for _ in 0..30 {
             let function = function.borrow();
@@ -181,37 +196,29 @@ fn run_canonical_pso<const SIZE: usize>(
     }
 }
 
-fn run_functions<const SIZE: usize>(
-    functions: &[impl Borrow<function::Function<SIZE>>],
-) -> FunctionResult {
-    let train = functions
-        .iter()
-        .map(|function| {
-            (
-                (
-                    &function.borrow().func as &Box<dyn for<'a> Fn(&'a Vector<SIZE>) -> f64>,
-                    function.borrow().bounds.as_slice(),
-                ),
-                function.borrow().minima,
-            )
-        })
-        .collect::<Vec<_>>();
-
+fn run_functions<const SIZE: usize>(function: function::Function<SIZE>) -> FunctionResult {
     let mut results = Vec::with_capacity(30);
     let start = Instant::now();
     for r in 0..30 {
         // println!("Run: {r}");
-
-        let mut ge = GE::<(&Box<dyn Fn(&Vector<SIZE>) -> f64>, &[Bound]), f64, Velocity<SIZE>>::new(
-            100,
-            (0.7, 0.3, 0.0),
-            3,
-            10,
-            100,
-            5,
-            1,
-            &train,
-        );
+        let train = [(
+            (
+                &function.func as &Box<dyn for<'a> Fn(&'a Vector<SIZE>) -> f64 + Send>,
+                function.bounds.as_slice(),
+            ),
+            function.minima,
+        )];
+        let mut ge =
+            GE::<(&Box<dyn Fn(&Vector<SIZE>) -> f64 + Send>, &[Bound]), f64, Velocity<SIZE>>::new(
+                100,
+                (0.7, 0.3, 0.0),
+                3,
+                10,
+                100,
+                5,
+                1,
+                &train,
+            );
         let chromosome = ge.start();
 
         // creating the velocity equation
@@ -221,12 +228,9 @@ fn run_functions<const SIZE: usize>(
         let func = |current: &_, best: &_| velocity.runner(current, best);
 
         // running the pso
-        for function in functions {
-            let function = function.borrow();
-            let particle = pso(100, 100, &function.bounds, func, &function.func);
-            let minima = (function.func)(&particle.coordinates());
-            results.push(minima)
-        }
+        let particle = pso(100, 100, &function.bounds, func, &function.func);
+        let minima = (function.func)(&particle.coordinates());
+        results.push(minima)
     }
     let end = start.elapsed();
 

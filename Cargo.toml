@@ -9,3 +9,4 @@ edition = "2021"
 mikes-ge = { git = "https://github.com/MichaelDuPlessis/mikes-ge.git" }
 mikes-pso = { git = "https://github.com/MichaelDuPlessis/mikes-pso.git" }
 rand = "0.8.5"
+threadpool = "1.8.1"
