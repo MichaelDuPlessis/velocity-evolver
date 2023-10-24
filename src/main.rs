@@ -16,22 +16,21 @@ fn run_all_functions() {
     const SIZE: usize = 30;
     let functions = function::functions::<SIZE>();
     //
-    let mut file = File::create("./results_copy/canonical30.csv").unwrap();
+    let mut file = File::create("./results_copy/disposable30.csv").unwrap();
     file.write(b"min, mean, std, time(s)\n").unwrap();
 
     // unique solution
     println!("Starting Single Function Runs");
     for (i, function) in functions.iter().enumerate() {
-        // println!("Function: {i}");
-        let res = run_canonical_pso(&[function]);
+        println!("Function: {i}");
+        let res = run_functions(&[function]);
         file.write(res.to_csv().as_bytes()).unwrap();
     }
-    return;
 
     // general solution
     println!("Starting Multi Function Runs");
 
-    let mut file = File::create("./results_copy/reusable100.csv").unwrap();
+    let mut file = File::create("./results_copy/reusable30.csv").unwrap();
     file.write(b"min, mean, std, time(s)\n").unwrap();
 
     let train = functions
