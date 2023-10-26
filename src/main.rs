@@ -15,27 +15,20 @@ use threadpool::ThreadPool;
 use velocity::Velocity;
 
 fn run_all_functions() {
-    const SIZE: usize = 30;
+    const SIZE: usize = 100;
     let functions = function::functions::<SIZE>();
     //
-    let file = Arc::new(Mutex::new(
-        File::create("./results_copy/disposable30.csv").unwrap(),
-    ));
-    file.lock()
-        .unwrap()
-        .write(b"min, mean, std, time(s)\n")
-        .unwrap();
-
+    let results = Arc::new(Mutex::new(Vec::with_capacity(17)));
     let pool = ThreadPool::default();
 
     // unique solution
     println!("Starting Single Function Runs");
     for (i, function) in functions.into_iter().enumerate() {
-        let file = Arc::clone(&file);
+        let results = Arc::clone(&results);
         pool.execute(move || {
             println!("Starting function: {i}");
             let res = run_functions(function);
-            file.lock().unwrap().write(res.to_csv().as_bytes()).unwrap();
+            results.lock().unwrap().push((i, res));
             println!("Finished function: {i}");
         });
     }
@@ -43,66 +36,82 @@ fn run_all_functions() {
     // general solution
     println!("Starting Multi Function Runs");
 
-    let mut file = File::create("./results_copy/reusable30.csv").unwrap();
-    file.write(b"min, mean, std, time(s)\n").unwrap();
+    pool.execute(|| {
+        let mut file = File::create("./results_copy/reusable100.csv").unwrap();
+        file.write(b"min, mean, std, time(s)\n").unwrap();
 
-    let functions = function::functions::<SIZE>();
-    let train = functions
-        .iter()
-        .map(|function| {
-            (
+        let functions = function::functions::<SIZE>();
+        let train = functions
+            .iter()
+            .map(|function| {
                 (
-                    &function.borrow().func as &Box<dyn for<'a> Fn(&'a Vector<SIZE>) -> f64 + Send>,
-                    function.borrow().bounds.as_slice(),
-                ),
-                function.borrow().minima,
-            )
-        })
-        .collect::<Vec<_>>();
+                    (
+                        &function.borrow().func
+                            as &Box<dyn for<'a> Fn(&'a Vector<SIZE>) -> f64 + Send>,
+                        function.borrow().bounds.as_slice(),
+                    ),
+                    function.borrow().minima,
+                )
+            })
+            .collect::<Vec<_>>();
 
-    let start = Instant::now();
-    // println!("Run: {r}");
+        let start = Instant::now();
+        // println!("Run: {r}");
 
-    let mut ge =
-        GE::<(&Box<dyn Fn(&Vector<SIZE>) -> f64 + Send>, &[Bound]), f64, Velocity<SIZE>>::new(
-            100,
-            (0.7, 0.3, 0.0),
-            3,
-            10,
-            100,
-            5,
-            30,
-            &train,
-        );
-    let chromosome = ge.start();
-    let end = start.elapsed();
+        let mut ge =
+            GE::<(&Box<dyn Fn(&Vector<SIZE>) -> f64 + Send>, &[Bound]), f64, Velocity<SIZE>>::new(
+                100,
+                (0.7, 0.3, 0.0),
+                3,
+                10,
+                100,
+                5,
+                30,
+                &train,
+            );
+        let chromosome = ge.start();
+        let end = start.elapsed();
 
-    // creating the velocity equation
-    let velocity = Velocity::generate(&chromosome);
-    // dbg!(&velocity);
-    let func = |current: &_, best: &_| velocity.runner(current, best);
+        // creating the velocity equation
+        let velocity = Velocity::generate(&chromosome);
+        // dbg!(&velocity);
+        let func = |current: &_, best: &_| velocity.runner(current, best);
 
-    // running the pso
-    for function in &functions {
-        let mut results = Vec::with_capacity(30);
-        for _ in 0..30 {
-            let function = function.borrow();
-            let particle = pso(100, 100, &function.bounds, func, &function.func);
-            let minima = (function.func)(&particle.coordinates());
-            results.push(minima)
-        }
-        let mut min = f64::MAX;
-        for result in &results {
-            if result < &min {
-                min = *result
+        // running the pso
+        for function in &functions {
+            let mut results = Vec::with_capacity(30);
+            for _ in 0..30 {
+                let function = function.borrow();
+                let particle = pso(100, 100, &function.bounds, func, &function.func);
+                let minima = (function.func)(&particle.coordinates());
+                results.push(minima)
             }
+            let mut min = f64::MAX;
+            for result in &results {
+                if result < &min {
+                    min = *result
+                }
+            }
+            let mean = results.iter().sum::<f64>() / 30.0;
+            let std = (results.iter().map(|r| (r - mean) * (r - mean)).sum::<f64>()
+                / results.len() as f64)
+                .sqrt();
+            file.write(format!("{min}, {mean}, {std}, {:.4}\n", end.as_secs_f64()).as_bytes())
+                .unwrap();
         }
-        let mean = results.iter().sum::<f64>() / 30.0;
-        let std = (results.iter().map(|r| (r - mean) * (r - mean)).sum::<f64>()
-            / results.len() as f64)
-            .sqrt();
-        file.write(format!("{min}, {mean}, {std}, {:.4}\n", end.as_secs_f64()).as_bytes())
-            .unwrap();
+    });
+
+    pool.join();
+
+    let mut file = File::create("./results_copy/disposable100.csv").unwrap();
+    file.write(b"min, mean, std, time(s)\n").unwrap();
+    results
+        .lock()
+        .unwrap()
+        .sort_unstable_by(|(i, _), (j, _)| i.cmp(j));
+
+    for (_, result) in results.lock().unwrap().iter() {
+        file.write(result.to_csv().as_bytes()).unwrap();
     }
 
     // println!("Starting Canoncial PSO");
